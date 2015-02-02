@@ -7,6 +7,14 @@ import (
 	"os"
 )
 
+func echo(in string) {
+	fmt.Println(in)
+}
+
+var builtins = map[string]func(string){
+	"echo": echo,
+}
+
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
@@ -19,13 +27,18 @@ func main() {
 				fmt.Fprintln(os.Stderr, "reading command line args", err)
 				continue
 			}
-			fmt.Println(args)
-			process, err := os.StartProcess(args[0], args, &procAttr)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "starting process", err)
-				continue
+			command := args[0]
+			builtin, ok := builtins[command]
+			if ok {
+				builtin("hmm")
+			} else {
+				process, err := os.StartProcess(args[0], args, &procAttr)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "starting process", err)
+					continue
+				}
+				process.Wait()
 			}
-			process.Wait()
 		} else {
 			break
 		}
