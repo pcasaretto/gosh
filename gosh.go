@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/mattn/go-shellwords"
 	"os"
 )
 
@@ -13,9 +14,16 @@ func main() {
 		if scanner.Scan() {
 			var procAttr os.ProcAttr
 			procAttr.Files = []*os.File{os.Stdin, os.Stdout, os.Stderr}
-			process, err := os.StartProcess(scanner.Text(), []string{"-G"}, &procAttr)
+			args, err := shellwords.Parse(scanner.Text())
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "reading command line args", err)
+				continue
+			}
+			fmt.Println(args)
+			process, err := os.StartProcess(args[0], args, &procAttr)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "starting process", err)
+				continue
 			}
 			process.Wait()
 		} else {
