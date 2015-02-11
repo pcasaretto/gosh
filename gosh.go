@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"github.com/mattn/go-shellwords"
 	"os"
+	"reflect"
 )
 
-func echo(in string) {
-	fmt.Println(in)
-}
+type BuiltinCollection int
 
-var builtins = map[string]func(string){
-	"echo": echo,
+func (c BuiltinCollection) Echo(in []string) {
+	fmt.Println(in)
 }
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
+	var builtins BuiltinCollection
 	for {
 		fmt.Print("-> ")
 		if scanner.Scan() {
@@ -28,9 +28,9 @@ func main() {
 				continue
 			}
 			command := args[0]
-			builtin, ok := builtins[command]
-			if ok {
-				builtin("hmm")
+			value := reflect.ValueOf(builtins).MethodByName(command)
+			if value.IsValid() {
+				value.Call([]reflect.Value{reflect.ValueOf(args)})
 			} else {
 				process, err := os.StartProcess(args[0], args, &procAttr)
 				if err != nil {
