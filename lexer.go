@@ -137,7 +137,7 @@ func lex(name, input string) (*lexer, chan item) {
 
 // run runs the state machine for the lexer.
 func (l *lexer) run() {
-	for l.state = lexText; l.state != nil; {
+	for l.state = lexCommand; l.state != nil; {
 		l.state = l.state(l)
 	}
 }

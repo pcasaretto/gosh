@@ -1,11 +1,14 @@
 package gosh
 
-import "testing"
+import (
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
 
-func TestPlaceholder(t *testing.T) {
-	_, items := lex("empty", "")
-	item := <-items
-	if item.typ != itemEOF {
-		t.Errorf("Channel was not closed, received %+v", item)
-	}
-}
+var _ = Describe("Lexer", func() {
+	It("should work", func()  {
+		_, items := lex("empty", "")
+		item := <-items
+		Expect(item.typ).To(Equal(itemEOF))
+	})
+})
