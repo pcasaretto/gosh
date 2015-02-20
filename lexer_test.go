@@ -6,9 +6,13 @@ import (
 )
 
 var _ = Describe("Lexer", func() {
-	It("should work", func()  {
+	It("should parse empty strings successfuly", func() {
 		_, items := lex("empty", "")
-		item := <-items
-		Expect(item.typ).To(Equal(itemEOF))
+		var result []item
+		for item := range items {
+			result = append(result, item)
+		}
+		Expect(len(result)).To(Equal(1))
+		Expect(result[0].typ).To(Equal(itemEOF))
 	})
 })

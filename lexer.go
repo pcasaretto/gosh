@@ -140,6 +140,7 @@ func (l *lexer) run() {
 	for l.state = lexCommand; l.state != nil; {
 		l.state = l.state(l)
 	}
+	close(l.items)
 }
 
 // state functions
