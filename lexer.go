@@ -7,14 +7,10 @@ import (
 	"unicode/utf8"
 )
 
-// Pos represents a byte position in the original input text from which
-// this template was parsed.
-type Pos int
-
 // item represents a token or text string returned from the scanner.
 type item struct {
 	typ itemType // The type of this item.
-	pos Pos      // The starting position, in bytes, of this item in the input string.
+	pos int      // The starting position, in bytes, of this item in the input string.
 	val string   // The value of this item.
 }
 
@@ -36,7 +32,9 @@ type itemType int
 const (
 	itemError itemType = iota // error occurred; value is text of error
 	itemEOF
-	itemSpace // run of spaces separating arguments
+	itemSpace      // run of spaces separating arguments
+	itemIdentifier // identifiers
+	itemString     // quoted string (includes quotes)
 )
 
 var key = map[string]itemType{}
@@ -48,13 +46,12 @@ type stateFn func(*lexer) stateFn
 
 // lexer holds the state of the scanner.
 type lexer struct {
-	name       string    // the name of the input; used only for error reports
 	input      string    // the string being scanned
 	state      stateFn   // the next lexing function to enter
-	pos        Pos       // current position in the input
-	start      Pos       // start position of this item
-	width      Pos       // width of last rune read from input
-	lastPos    Pos       // position of most recent item returned by nextItem
+	pos        int       // current position in the input
+	start      int       // start position of this item
+	width      int       // width of last rune read from input
+	lastPos    int       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
 }
@@ -66,7 +63,7 @@ func (l *lexer) next() rune {
 		return eof
 	}
 	r, w := utf8.DecodeRuneInString(l.input[l.pos:])
-	l.width = Pos(w)
+	l.width = w
 	l.pos += l.width
 	return r
 }
@@ -125,9 +122,8 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 }
 
 // lex creates a new scanner for the input string.
-func lex(name, input string) (*lexer, chan item) {
+func lex(input string) (*lexer, chan item) {
 	l := &lexer{
-		name:  name,
 		input: input,
 		items: make(chan item),
 	}
@@ -146,8 +142,88 @@ func (l *lexer) run() {
 // state functions
 
 func lexCommand(l *lexer) stateFn {
+Loop:
+	for {
+		switch r := l.next(); {
+		case isSpace(r):
+			return lexSpace
+		case isIdentifierOrSlash(r):
+			l.backup()
+			return lexIdentifier
+		case r == '"':
+			return lexQuote
+		case r == '\'':
+			return lexSingleQuote
+		case r == eof:
+			break Loop
+		}
+	}
 	l.emit(itemEOF)
 	return nil
+}
+
+// lexSpace scans a run of space characters.
+// One space has already been seen.
+func lexSpace(l *lexer) stateFn {
+	for isSpace(l.peek()) {
+		l.next()
+	}
+	l.emit(itemSpace)
+	return lexCommand
+}
+
+func lexIdentifier(l *lexer) stateFn {
+	for {
+		r := l.next()
+		if isIdentifierOrSlash(r){
+			// absorb.
+		} else {
+			l.backup()
+			l.emit(itemIdentifier)
+			break
+		}
+	}
+	return lexCommand
+}
+
+// lexQuote scans a quoted string.
+func lexQuote(l *lexer) stateFn {
+Loop:
+	for {
+		switch l.next() {
+		case '\\':
+			if r := l.next(); r != eof && r != '\n' {
+				break
+			}
+			fallthrough
+		case eof, '\n':
+			return l.errorf("unterminated quoted string")
+		case '"':
+			break Loop
+		}
+	}
+	l.emit(itemString)
+	return lexCommand
+}
+
+// lexQuote scans a single string.
+func lexSingleQuote(l *lexer) stateFn {
+Loop:
+	for {
+		switch l.next() {
+		case '\\':
+			if r := l.next(); r != eof && r != '\n' {
+				break
+			}
+			fallthrough
+		case eof, '\n':
+			return l.errorf("unterminated quoted string")
+		case '\'':
+			break Loop
+		}
+	}
+	l.emit(itemString)
+	return lexCommand
 }
 
 // isSpace reports whether r is a space character.
@@ -163,4 +239,8 @@ func isEndOfLine(r rune) bool {
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+func isIdentifierOrSlash(r rune) bool {
+	return isAlphaNumeric(r) || r == '/'
 }
