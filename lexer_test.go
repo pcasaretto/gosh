@@ -44,6 +44,7 @@ var lexTests = []lexTest{
 var _ = Describe("Lexer", func() {
 	Describe("parses case:", func() {
 		for _, test := range lexTests {
+			test := test
 			It(test.name, func() {
 				items := collect(&test)
 				Expect(items).To(HaveLen(len(test.items)))
