@@ -175,7 +175,7 @@ func lexSpace(l *lexer) stateFn {
 func lexIdentifier(l *lexer) stateFn {
 	for {
 		r := l.next()
-		if isIdentifierOrSlash(r){
+		if isIdentifierOrSlash(r) {
 			// absorb.
 		} else {
 			l.backup()
